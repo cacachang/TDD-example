@@ -2,6 +2,92 @@ import { describe, it, expect, assert } from 'vitest'
 import { mount } from '@vue/test-utils'
 import RegisterView from '@/views/registerView.vue'
 import { assert } from '@vue/compiler-core'
+import { Polly } from '@pollyjs/core';
+import FetchAdapter from '@pollyjs/adapter-fetch';
+import LocalStoragePersister from '@pollyjs/persister-local-storage';
+import fetch, { Request, Response } from 'node-fetch'
+
+global.fetch = fetch
+global.Request = Request
+global.Response = Response
+
+Polly.register(LocalStoragePersister);
+Polly.register(FetchAdapter);
+
+describe('範例', async() => {
+  const polly = new Polly('取得會員資料', {
+    adapters: ['fetch'],
+    persister: 'local-storage',
+    logLevel: 'info'
+  });
+    
+  it('取得所有會員的資料', async () => {
+    // Arrange
+    // Act
+    const response = await fetch("https://reqres.in/api/users?page=2")
+    const data = await response.json()
+    // Assert
+    expect(response.status).to.equal(200)
+    expect(data.total).to.equal(12)
+  })
+  await polly.stop()
+})
+
+describe('當會員要註冊時', () => {
+  const polly = new Polly('當會員註冊時', {
+    adapters: ['fetch'],
+    persister: 'local-storage',
+    logLevel: 'info'
+  });
+
+  it('沒填密碼時，會註冊失敗', async () => {
+    // Arrange
+    const email = "sydney@fife"
+    const password = ""
+
+    // Act
+    const response = await fetch("https://reqres.in/api/register", {
+      method: 'POST',
+      headers: { 
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        email: email,
+        password: password
+      })
+    })
+
+    const data = await response.json()
+
+    // Assert
+    expect(response.status).to.equal(400)
+    expect(data.error).to.equal("Missing password")
+  })
+
+  it('必要資訊都有填，可成功註冊', async () => {
+    // Arrange
+    const email = "eve.holt@reqres.in"
+    const password = "pistol"
+
+    // Act
+    const response = await fetch("https://reqres.in/api/register", {
+      method: 'POST',
+      headers: { 
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        email: email,
+        password: password
+      })
+    })
+
+    const data = await response.json()
+
+    // Assert
+    expect(response.status).to.equal(200)
+    expect(data.id).toBe(4)
+  })
+})
 
 describe('當會員資料有缺漏時', () => {
   it('沒填帳號時，會出現錯誤訊息', async() => {
